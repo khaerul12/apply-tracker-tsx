@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { collection, query, onSnapshot, orderBy, doc, updateDoc, getDocs, where } from 'firebase/firestore';
+import { collection, query, onSnapshot, orderBy, doc, updateDoc, getDocs, where, writeBatch, deleteDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
 import { UserProfile, JobApplication } from '@/types';
@@ -64,6 +64,31 @@ export default function Admin() {
     } catch (error) {
       console.error(error);
       toast.error('Failed to update subscription');
+    }
+  };
+
+  const handleDeleteUser = async (user: UserProfile) => {
+    if (profile?.uid === user.uid) {
+      toast.error('You cannot delete your own admin account from this panel.');
+      return;
+    }
+
+    const confirmed = window.confirm(`Delete ${user.email} and all associated application data? This cannot be undone.`);
+    if (!confirmed) return;
+
+    try {
+      const appsQuery = query(collection(db, 'applications'), where('userId', '==', user.uid));
+      const appsSnapshot = await getDocs(appsQuery);
+      const batch = writeBatch(db);
+
+      appsSnapshot.docs.forEach((appDoc) => batch.delete(appDoc.ref));
+      batch.delete(doc(db, 'users', user.uid));
+
+      await batch.commit();
+      toast.success('User account and related applications deleted');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to delete user account');
     }
   };
 
@@ -147,6 +172,13 @@ export default function Admin() {
                     >
                       <Shield className="mr-2 h-4 w-4" /> 
                       {u.isSubscribed ? 'Unsubscribe' : 'Subscribe'}
+                    </Button>
+                    <Button 
+                      variant="destructive" 
+                      size="sm" 
+                      onClick={() => handleDeleteUser(u)}
+                    >
+                      Delete
                     </Button>
                   </TableCell>
                 </TableRow>

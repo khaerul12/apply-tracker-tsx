@@ -32,6 +32,7 @@ const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
 const FILTER_OPTIONS = [
   { value: 'date', label: 'Date' },
   { value: 'location', label: 'Location' },
+  { value: 'platform', label: 'Platform' },
   { value: 'result', label: 'Hasil' },
   { value: 'education', label: 'Education' },
 ] as const;
@@ -42,7 +43,7 @@ export default function TableView() {
   const [loading, setLoading] = useState(true);
   const [editingApp, setEditingApp] = useState<JobApplication | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [filterType, setFilterType] = useState<'date' | 'location' | 'result' | 'education'>('location');
+  const [filterType, setFilterType] = useState<'date' | 'location' | 'platform' | 'result' | 'education'>('location');
   const [filterQuery, setFilterQuery] = useState('');
   const [pageSize, setPageSize] = useState<number>(10);
   const [pageIndex, setPageIndex] = useState<number>(0);
@@ -123,6 +124,8 @@ export default function TableView() {
         return format(app.applyDate.toDate(), 'yyyy-MM-dd').includes(query);
       case 'location':
         return (app.location || '').toLowerCase().includes(query);
+      case 'platform':
+        return (app.platform || '').toLowerCase().includes(query);
       case 'result':
         return app.result.toLowerCase().includes(query);
       case 'education':
@@ -150,6 +153,8 @@ export default function TableView() {
         return 'yyyy-mm-dd';
       case 'location':
         return 'Search location';
+      case 'platform':
+        return 'Search platform';
       case 'result':
         return 'Search hasil/status';
       case 'education':
@@ -160,7 +165,7 @@ export default function TableView() {
   };
 
   const handleFilterTypeChange = (value: string) => {
-    setFilterType(value as 'date' | 'location' | 'result' | 'education');
+    setFilterType(value as 'date' | 'location' | 'platform' | 'result' | 'education');
     setFilterQuery('');
     setPageIndex(0);
   };

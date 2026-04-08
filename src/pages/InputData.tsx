@@ -17,6 +17,17 @@ import { ApplicationResult, EducationLevel } from '@/types';
 
 const RESULTS: ApplicationResult[] = ["Applied", "No Response", "Interviewing", "Approve", "Decline", "Processed", "View"];
 const EDUCATION_LEVELS: EducationLevel[] = ["SMA/SMK", "D3", "S1/D4", "S2", "No Minimum Education"];
+const COMMON_PLATFORMS = [
+  "LinkedIn",
+  "Indeed",
+  "Glints",
+  "JobStreet",
+  "Kalibrr",
+  "Glassdoor",
+  "Company Website",
+  "Referral",
+  "Other"
+];
 const TEMPLATE_HEADERS = [
   'companyName',
   'position',
@@ -71,6 +82,11 @@ export default function InputData() {
     minEducation: 'No Minimum Education' as EducationLevel,
     jobLink: '',
   });
+  const [customPlatform, setCustomPlatform] = useState('');
+
+  // Load custom platforms from localStorage
+  const customPlatforms = JSON.parse(localStorage.getItem('customPlatforms') || '[]');
+  const allPlatforms = [...COMMON_PLATFORMS.filter(p => p !== 'Other'), ...customPlatforms, 'Other'];
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -79,6 +95,22 @@ export default function InputData() {
     if (!formData.companyName || !formData.position) {
       toast.error('Company Name and Position are required');
       return;
+    }
+
+    const platformValue = formData.platform === 'Other' ? customPlatform.trim() : formData.platform;
+
+    if (!platformValue) {
+      toast.error('Platform is required');
+      return;
+    }
+
+    // Store new platforms in localStorage for future suggestions
+    if (formData.platform === 'Other' && customPlatform.trim()) {
+      const storedPlatforms = JSON.parse(localStorage.getItem('customPlatforms') || '[]');
+      if (!storedPlatforms.includes(customPlatform.trim())) {
+        storedPlatforms.push(customPlatform.trim());
+        localStorage.setItem('customPlatforms', JSON.stringify(storedPlatforms));
+      }
     }
 
     setLoading(true);
@@ -90,7 +122,7 @@ export default function InputData() {
         position: formData.position,
         location: formData.location,
         applyDate: Timestamp.fromDate(date),
-        platform: formData.platform,
+        platform: platformValue,
         result: formData.result,
         minEducation: formData.minEducation,
         jobLink: formData.jobLink,
@@ -109,6 +141,7 @@ export default function InputData() {
         minEducation: 'No Minimum Education',
         jobLink: '',
       });
+      setCustomPlatform('');
       setDate(new Date());
     } catch (error) {
       console.error(error);
@@ -306,12 +339,28 @@ export default function InputData() {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium">Melamar Lewat</label>
-                <Input 
-                  placeholder="e.g. LinkedIn, Glints, Indeed" 
-                  value={formData.platform}
-                  onChange={(e) => setFormData({...formData, platform: e.target.value})}
-                />
+                <label className="text-sm font-medium">Melamar Lewat *</label>
+                <Select 
+                  value={formData.platform} 
+                  onValueChange={(v) => setFormData({...formData, platform: v})}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select platform" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {allPlatforms.map(p => (
+                      <SelectItem key={p} value={p}>{p}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                {formData.platform === 'Other' && (
+                  <Input 
+                    placeholder="Enter custom platform" 
+                    value={customPlatform}
+                    onChange={(e) => setCustomPlatform(e.target.value)}
+                    className="mt-2"
+                  />
+                )}
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium">Hasil *</label>

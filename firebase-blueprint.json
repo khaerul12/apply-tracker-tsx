@@ -1,0 +1,64 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile and subscription information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "trialEndsAt": { "type": "string", "format": "date-time" },
+        "isSubscribed": { "type": "boolean" }
+      },
+      "required": ["uid", "email", "role", "trialEndsAt"]
+    },
+    "Application": {
+      "title": "Job Application",
+      "description": "Details of a job application",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner of the application" },
+        "companyName": { "type": "string" },
+        "position": { "type": "string" },
+        "location": { "type": "string" },
+        "applyDate": { "type": "string", "format": "date-time" },
+        "platform": { "type": "string" },
+        "result": { 
+          "type": "string", 
+          "enum": ["Applied", "No Response", "Interviewing", "Approve", "Decline", "Processed", "View"] 
+        },
+        "minEducation": { 
+          "type": "string", 
+          "enum": ["SMA/SMK", "D3", "S1/D4", "S2", "No Minimum Education"] 
+        },
+        "jobLink": { "type": "string", "format": "uri" },
+        "logs": { 
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "status": { "type": "string" },
+              "timestamp": { "type": "string", "format": "date-time" }
+            }
+          }
+        },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "companyName", "position", "applyDate", "result"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/applications/{applicationId}": {
+      "schema": "Application",
+      "description": "Job applications"
+    }
+  }
+}

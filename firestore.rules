@@ -1,0 +1,119 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Document ID: {userId}
+    // Fields:
+    //   - uid: string (required)
+    //   - email: string (required)
+    //   - displayName: string (optional)
+    //   - role: string (required, 'user' or 'admin')
+    //   - createdAt: timestamp (required)
+    //   - trialEndsAt: timestamp (required)
+    //   - isSubscribed: bool (optional)
+    //
+    // Collection: applications
+    // Document ID: {applicationId}
+    // Fields:
+    //   - userId: string (required)
+    //   - companyName: string (required)
+    //   - position: string (required)
+    //   - location: string (optional)
+    //   - applyDate: timestamp (required)
+    //   - platform: string (optional)
+    //   - result: string (required, enum)
+    //   - minEducation: string (optional, enum)
+    //   - jobLink: string (optional)
+    //   - logs: list (optional)
+    //   - createdAt: timestamp (required)
+    //   - updatedAt: timestamp (required)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (
+          (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+           get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin') ||
+          request.auth.token.email == "khaerulusman68@gmail.com"
+        );
+    }
+
+    function hasRequiredFields(data, fields) {
+      return data.keys().hasAll(fields);
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // Domain Validators
+    function isValidUser(data) {
+      return hasRequiredFields(data, ['uid', 'email', 'role', 'createdAt', 'trialEndsAt']) &&
+             data.uid is string &&
+             data.role in ['user', 'admin'] &&
+             isValidEmail(data.email) &&
+             data.createdAt is timestamp &&
+             data.trialEndsAt is timestamp &&
+             (!('isSubscribed' in data) || data.isSubscribed is bool) &&
+             (!('displayName' in data) || (data.displayName is string && data.displayName.size() < 100));
+    }
+
+    function isValidApplication(data) {
+      return hasRequiredFields(data, ['userId', 'companyName', 'position', 'applyDate', 'result', 'createdAt', 'updatedAt']) &&
+             data.userId is string &&
+             data.companyName is string && data.companyName.size() > 0 && data.companyName.size() < 200 &&
+             data.position is string && data.position.size() > 0 && data.position.size() < 200 &&
+             data.applyDate is timestamp &&
+             data.result in ["Applied", "No Response", "Interviewing", "Approve", "Decline", "Processed", "View"] &&
+             data.createdAt is timestamp &&
+             data.updatedAt is timestamp &&
+             (!('location' in data) || (data.location is string && data.location.size() < 200)) &&
+             (!('platform' in data) || (data.platform is string && data.platform.size() < 100)) &&
+             (!('jobLink' in data) || (data.jobLink is string && data.jobLink.size() < 500)) &&
+             (!('minEducation' in data) || data.minEducation in ["SMA/SMK", "D3", "S1/D4", "S2", "No Minimum Education"]) &&
+             (!('logs' in data) || data.logs is list);
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isOwner(userId) || isAdmin();
+      allow create: if isOwner(userId) && isValidUser(request.resource.data) && 
+                      request.resource.data.uid == request.auth.uid &&
+                      (request.resource.data.role == 'user' || request.auth.token.email == "khaerulusman68@gmail.com" || isAdmin());
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && 
+                      (
+                        (isOwner(userId) && request.resource.data.uid == resource.data.uid && (request.resource.data.role == resource.data.role || request.auth.token.email == "khaerulusman68@gmail.com")) || 
+                        isAdmin()
+                      );
+    }
+
+    match /applications/{applicationId} {
+      allow read: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+      allow create: if isAuthenticated() && isValidApplication(request.resource.data) && 
+                      request.resource.data.userId == request.auth.uid;
+      allow update: if isAuthenticated() && isValidApplication(request.resource.data) && 
+                      ((resource.data.userId == request.auth.uid && request.resource.data.userId == resource.data.userId) || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.userId == request.auth.uid || isAdmin());
+    }
+  }
+}

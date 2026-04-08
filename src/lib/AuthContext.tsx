@@ -1,5 +1,13 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { onAuthStateChanged, User, signInWithPopup, GoogleAuthProvider, signOut } from 'firebase/auth';
+import {
+  onAuthStateChanged,
+  User,
+  signInWithPopup,
+  GoogleAuthProvider,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  signOut,
+} from 'firebase/auth';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
 import { auth, db } from './firebase';
 import { UserProfile } from '../types';
@@ -9,6 +17,7 @@ interface AuthContextType {
   profile: UserProfile | null;
   loading: boolean;
   login: () => Promise<void>;
+  loginWithEmail: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   isTrialValid: boolean;
 }
@@ -68,6 +77,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     await signInWithPopup(auth, provider);
   };
 
+  const loginWithEmail = async (email: string, password: string) => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (error) {
+      const authError = error as { code?: string; message?: string };
+      if (authError.code === 'auth/user-not-found') {
+        await createUserWithEmailAndPassword(auth, email, password);
+      } else {
+        throw new Error(authError.message || 'Unable to sign in with email');
+      }
+    }
+  };
+
   const logout = async () => {
     await signOut(auth);
   };
@@ -75,7 +97,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isTrialValid = profile ? profile.trialEndsAt.toDate() > new Date() || profile.isSubscribed === true : false;
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, login, logout, isTrialValid }}>
+    <AuthContext.Provider value={{ user, profile, loading, login, loginWithEmail, logout, isTrialValid }}>
       {children}
     </AuthContext.Provider>
   );

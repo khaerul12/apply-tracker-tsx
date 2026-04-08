@@ -87,8 +87,9 @@ export default function Admin() {
       await batch.commit();
       toast.success('User account and related applications deleted');
     } catch (error) {
-      console.error(error);
-      toast.error('Failed to delete user account');
+      console.error('Delete user error:', error);
+      const message = error instanceof Error ? error.message : String(error);
+      toast.error(`Failed to delete user account: ${message}`);
     }
   };
 

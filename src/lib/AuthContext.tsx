@@ -6,6 +6,7 @@ import {
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendPasswordResetEmail,
   signOut,
 } from 'firebase/auth';
 import { doc, getDoc, setDoc, Timestamp } from 'firebase/firestore';
@@ -18,6 +19,8 @@ interface AuthContextType {
   loading: boolean;
   login: () => Promise<void>;
   loginWithEmail: (email: string, password: string) => Promise<void>;
+  createAccountWithEmail: (email: string, password: string) => Promise<void>;
+  resetPassword: (email: string) => Promise<void>;
   logout: () => Promise<void>;
   isTrialValid: boolean;
 }
@@ -78,16 +81,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loginWithEmail = async (email: string, password: string) => {
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (error) {
-      const authError = error as { code?: string; message?: string };
-      if (authError.code === 'auth/user-not-found') {
-        await createUserWithEmailAndPassword(auth, email, password);
-      } else {
-        throw new Error(authError.message || 'Unable to sign in with email');
-      }
-    }
+    await signInWithEmailAndPassword(auth, email, password);
+  };
+
+  const createAccountWithEmail = async (email: string, password: string) => {
+    await createUserWithEmailAndPassword(auth, email, password);
+  };
+
+  const resetPassword = async (email: string) => {
+    await sendPasswordResetEmail(auth, email);
   };
 
   const logout = async () => {
@@ -97,7 +99,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isTrialValid = profile ? profile.trialEndsAt.toDate() > new Date() || profile.isSubscribed === true : false;
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, login, loginWithEmail, logout, isTrialValid }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        profile,
+        loading,
+        login,
+        loginWithEmail,
+        createAccountWithEmail,
+        resetPassword,
+        logout,
+        isTrialValid,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

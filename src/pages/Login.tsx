@@ -6,11 +6,16 @@ import { Input } from '@/components/ui/input';
 import { Briefcase, LogIn, Mail } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 
+type AuthMode = 'signin' | 'signup' | 'reset';
+
 export default function Login() {
-  const { user, login, loginWithEmail, loading } = useAuth();
+  const { user, login, loginWithEmail, createAccountWithEmail, resetPassword, loading } = useAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [mode, setMode] = useState<AuthMode>('signin');
   const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
 
   if (loading) return null;
   if (user) return <Navigate to="/" replace />;
@@ -18,12 +23,24 @@ export default function Login() {
   const handleEmailSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
+    setMessage('');
 
     try {
-      await loginWithEmail(email, password);
+      if (mode === 'signup') {
+        if (password !== confirmPassword) {
+          setError('Passwords do not match.');
+          return;
+        }
+        await createAccountWithEmail(email, password);
+      } else if (mode === 'reset') {
+        await resetPassword(email);
+        setMessage('Password reset email sent. Check your inbox.');
+      } else {
+        await loginWithEmail(email, password);
+      }
     } catch (err) {
       const authError = err as { message?: string };
-      setError(authError.message || 'Failed to sign in with email.');
+      setError(authError.message || 'Unable to complete authentication.');
     }
   };
 
@@ -50,7 +67,7 @@ export default function Login() {
           <div className="border-t border-muted/50 pt-4">
             <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
               <Mail className="h-4 w-4" />
-              <span>Or sign in with your email</span>
+              <span>{mode === 'reset' ? 'Reset your password' : mode === 'signup' ? 'Create an account or sign in with email' : 'Sign in with your email'}</span>
             </div>
 
             <form className="space-y-3" onSubmit={handleEmailSubmit}>
@@ -65,23 +82,82 @@ export default function Login() {
                 />
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground/90">Password</label>
-                <Input
-                  type="password"
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                  placeholder="Enter your password"
-                  required
-                />
-              </div>
+              {mode !== 'reset' ? (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground/90">Password</label>
+                  <Input
+                    type="password"
+                    value={password}
+                    onChange={(event) => setPassword(event.target.value)}
+                    placeholder="Enter your password"
+                    required
+                  />
+                </div>
+              ) : null}
+
+              {mode === 'signup' ? (
+                <div className="space-y-2">
+                  <label className="text-sm font-medium text-foreground/90">Confirm Password</label>
+                  <Input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(event) => setConfirmPassword(event.target.value)}
+                    placeholder="Confirm your password"
+                    required
+                  />
+                </div>
+              ) : null}
 
               {error ? <p className="text-sm text-destructive">{error}</p> : null}
+              {message ? <p className="text-sm text-success">{message}</p> : null}
 
               <Button type="submit" className="w-full h-12 text-lg">
-                Sign in with Email
+                {mode === 'signup'
+                  ? 'Create account'
+                  : mode === 'reset'
+                  ? 'Send password reset email'
+                  : 'Sign in with Email'}
               </Button>
             </form>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-3 text-sm">
+              <button
+                type="button"
+                className="text-primary hover:underline"
+                onClick={() => {
+                  setMode(mode === 'signup' ? 'signin' : 'signup');
+                  setError('');
+                  setMessage('');
+                }}
+              >
+                {mode === 'signup' ? 'Already have an account? Sign in' : 'Create an account'}
+              </button>
+              {mode !== 'reset' ? (
+                <button
+                  type="button"
+                  className="text-primary hover:underline"
+                  onClick={() => {
+                    setMode('reset');
+                    setError('');
+                    setMessage('');
+                  }}
+                >
+                  Forgot password?
+                </button>
+              ) : (
+                <button
+                  type="button"
+                  className="text-primary hover:underline"
+                  onClick={() => {
+                    setMode('signin');
+                    setError('');
+                    setMessage('');
+                  }}
+                >
+                  Back to sign in
+                </button>
+              )}
+            </div>
           </div>
 
           <p className="text-center text-xs text-muted-foreground">

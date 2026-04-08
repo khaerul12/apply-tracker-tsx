@@ -105,6 +105,7 @@ service cloud.firestore {
                         (isOwner(userId) && request.resource.data.uid == resource.data.uid && (request.resource.data.role == resource.data.role || request.auth.token.email == "khaerulusman68@gmail.com")) || 
                         isAdmin()
                       );
+      allow delete: if isAdmin();
     }
 
     match /applications/{applicationId} {

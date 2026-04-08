@@ -61,7 +61,13 @@ export default function Login() {
         <CardContent className="space-y-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
             <Mail className="h-4 w-4" />
-            <span>{mode === 'reset' ? 'Reset your password' : mode === 'signup' ? 'Create an account or sign in with email' : 'Sign in with your email'}</span>
+            <span>
+              {mode === 'reset' 
+                ? 'Reset your password' 
+                : mode === 'signup' 
+                  ? 'Create an account or sign in with email' 
+                  : 'Sign in with your email'}
+            </span>
           </div>
 
             <form className="space-y-3" onSubmit={handleEmailSubmit}>
@@ -152,7 +158,6 @@ export default function Login() {
                 </button>
               )}
             </div>
-          </div>
 
           <p className="text-center text-xs text-muted-foreground">
             By signing in, you agree to our Terms of Service and Privacy Policy.

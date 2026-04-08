@@ -6,6 +6,7 @@ import {
   GoogleAuthProvider,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  sendEmailVerification,
   sendPasswordResetEmail,
   signOut,
 } from 'firebase/auth';
@@ -81,11 +82,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const loginWithEmail = async (email: string, password: string) => {
-    await signInWithEmailAndPassword(auth, email, password);
+    const credential = await signInWithEmailAndPassword(auth, email, password);
+    if (!credential.user.emailVerified) {
+      await sendEmailVerification(credential.user);
+      await signOut(auth);
+      throw new Error('Email not verified. A verification email was sent to your address. Please verify and try logging in again.');
+    }
   };
 
   const createAccountWithEmail = async (email: string, password: string) => {
-    await createUserWithEmailAndPassword(auth, email, password);
+    const credential = await createUserWithEmailAndPassword(auth, email, password);
+    if (credential.user && !credential.user.emailVerified) {
+      await sendEmailVerification(credential.user);
+    }
   };
 
   const resetPassword = async (email: string) => {

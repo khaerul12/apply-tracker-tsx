@@ -15,7 +15,7 @@ function ProtectedRoute({ children, adminOnly = false }: { children: React.React
   const { user, profile, loading, isTrialValid } = useAuth();
 
   if (loading) return <div className="flex items-center justify-center h-screen">Loading...</div>;
-  if (!user) return <Navigate to="/login" replace />;
+  if (!user || !user.emailVerified) return <Navigate to="/login" replace />;
   
   if (adminOnly && profile?.role !== 'admin') {
     return <Navigate to="/" replace />;

@@ -18,7 +18,7 @@ export default function Login() {
   const [message, setMessage] = useState('');
 
   if (loading) return null;
-  if (user) return <Navigate to="/" replace />;
+  if (user && user.emailVerified) return <Navigate to="/" replace />;
 
   const handleEmailSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -32,6 +32,9 @@ export default function Login() {
           return;
         }
         await createAccountWithEmail(email, password);
+        setMessage('Verification email sent. Please verify your email before logging in.');
+        setMode('signin');
+        return;
       } else if (mode === 'reset') {
         await resetPassword(email);
         setMessage('Password reset email sent. Check your inbox.');

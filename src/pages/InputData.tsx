@@ -53,7 +53,14 @@ const parseApplyDate = (value: unknown) => {
 };
 
 const normalizeRow = (row: Record<string, any>) => {
-  const get = (key: string) => row[key] ?? row[key.toLowerCase()] ?? row[key.replace(/([A-Z])/g, ' $1')] ?? '';
+  const get = (key: string) => {
+    if (row[key] !== undefined) return row[key];
+    const lowerKey = key.toLowerCase();
+    if (row[lowerKey] !== undefined) return row[lowerKey];
+    // Convert camelCase to space separated
+    const spacedKey = key.replace(/([A-Z])/g, ' $1').toLowerCase();
+    return row[spacedKey] || '';
+  };
 
   return {
     companyName: String(get('companyName') || get('Company Name') || get('Nama Perusahaan') || '').trim(),

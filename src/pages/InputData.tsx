@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { collection, addDoc, Timestamp } from 'firebase/firestore';
+import * as XLSX from 'xlsx';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/lib/AuthContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -16,10 +17,49 @@ import { ApplicationResult, EducationLevel } from '@/types';
 
 const RESULTS: ApplicationResult[] = ["Applied", "No Response", "Interviewing", "Approve", "Decline", "Processed", "View"];
 const EDUCATION_LEVELS: EducationLevel[] = ["SMA/SMK", "D3", "S1/D4", "S2", "No Minimum Education"];
+const TEMPLATE_HEADERS = [
+  'companyName',
+  'position',
+  'location',
+  'applyDate',
+  'platform',
+  'result',
+  'minEducation',
+  'jobLink',
+] as const;
+
+const parseApplyDate = (value: unknown) => {
+  if (!value) return null;
+  if (value instanceof Date) return value;
+  if (typeof value === 'number') {
+    const result = XLSX.SSF.parse_date_code(value);
+    if (result && typeof result.y === 'number') {
+      return new Date(result.y, (result.m ?? 1) - 1, result.d ?? 1, result.H ?? 0, result.M ?? 0, result.S ?? 0);
+    }
+  }
+  const date = new Date(String(value));
+  return isNaN(date.getTime()) ? null : date;
+};
+
+const normalizeRow = (row: Record<string, any>) => {
+  const get = (key: string) => row[key] ?? row[key.toLowerCase()] ?? row[key.replace(/([A-Z])/g, ' $1')] ?? '';
+
+  return {
+    companyName: String(get('companyName') || get('Company Name') || get('Nama Perusahaan') || '').trim(),
+    position: String(get('position') || get('Position') || get('Posisi') || '').trim(),
+    location: String(get('location') || get('Location') || get('Lokasi') || '').trim(),
+    applyDate: get('applyDate') || get('Apply Date') || get('Tanggal Lamar') || '',
+    platform: String(get('platform') || get('Platform') || get('Melamar Lewat') || '').trim(),
+    result: String(get('result') || get('Result') || 'Applied').trim(),
+    minEducation: String(get('minEducation') || get('Min Education') || get('Min. Pendidikan') || 'No Minimum Education').trim(),
+    jobLink: String(get('jobLink') || get('Job Link') || '').trim(),
+  };
+};
 
 export default function InputData() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
+  const [importLoading, setImportLoading] = useState(false);
   const [date, setDate] = useState<Date>(new Date());
   
   const [formData, setFormData] = useState({
@@ -78,12 +118,129 @@ export default function InputData() {
     }
   };
 
+  const downloadImportTemplate = () => {
+    const templateData = [
+      {
+        companyName: 'Google',
+        position: 'Frontend Developer',
+        location: 'Jakarta',
+        applyDate: format(new Date(), 'yyyy-MM-dd'),
+        platform: 'LinkedIn',
+        result: 'Applied',
+        minEducation: 'S1/D4',
+        jobLink: 'https://example.com/job',
+      },
+    ];
+
+    const worksheet = XLSX.utils.json_to_sheet(templateData, { header: Array.from(TEMPLATE_HEADERS) });
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'ImportTemplate');
+    XLSX.writeFile(workbook, 'apply-work-tracker-import-template.xlsx');
+  };
+
+  const handleImport = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!user) return;
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setImportLoading(true);
+    try {
+      const data = await file.arrayBuffer();
+      const workbook = XLSX.read(data, { type: 'array' });
+      const sheetName = workbook.SheetNames[0];
+      const sheet = workbook.Sheets[sheetName];
+      if (!sheet) {
+        toast.error('Unable to read the first worksheet');
+        return;
+      }
+
+      const rows = XLSX.utils.sheet_to_json<Record<string, any>>(sheet, { defval: '' });
+      const documents = [] as Array<Record<string, any>>;
+      const now = Timestamp.now();
+
+      for (const row of rows) {
+        const normalized = normalizeRow(row);
+        if (!normalized.companyName || !normalized.position) {
+          continue;
+        }
+
+        const parsedDate = parseApplyDate(normalized.applyDate);
+        const applyDate = parsedDate ? Timestamp.fromDate(parsedDate) : now;
+        const resultValue = RESULTS.includes(normalized.result as ApplicationResult)
+          ? (normalized.result as ApplicationResult)
+          : 'Applied';
+        const minEducationValue = EDUCATION_LEVELS.includes(normalized.minEducation as EducationLevel)
+          ? (normalized.minEducation as EducationLevel)
+          : 'No Minimum Education';
+
+        documents.push({
+          userId: user.uid,
+          companyName: normalized.companyName,
+          position: normalized.position,
+          location: normalized.location,
+          applyDate,
+          platform: normalized.platform,
+          result: resultValue,
+          minEducation: minEducationValue,
+          jobLink: normalized.jobLink,
+          logs: [{ status: resultValue, timestamp: now }],
+          createdAt: now,
+          updatedAt: now,
+        });
+      }
+
+      if (documents.length === 0) {
+        toast.error('No valid rows found in the import file. Make sure companyName and position are provided.');
+        return;
+      }
+
+      await Promise.all(documents.map((doc) => addDoc(collection(db, 'applications'), doc)));
+      toast.success(`Imported ${documents.length} application(s) successfully!`);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to import data from the file');
+    } finally {
+      setImportLoading(false);
+      if (e.target) e.target.value = '';
+    }
+  };
+
   return (
     <div className="max-w-2xl mx-auto space-y-8">
       <div>
         <h2 className="text-3xl font-bold tracking-tight">Input Data</h2>
         <p className="text-muted-foreground">Add a new job application to your tracker.</p>
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Import from Excel / CSV</CardTitle>
+          <CardDescription>Upload a file to import multiple applications at once.</CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <label className="text-sm font-medium">Import File</label>
+            <Input
+              type="file"
+              accept=".xlsx,.xls,.csv"
+              onChange={handleImport}
+            />
+          </div>
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <Button variant="outline" onClick={downloadImportTemplate}>
+              Download Import Template
+            </Button>
+            <p className="text-sm text-muted-foreground max-w-2xl">
+              Required: <code>companyName</code>, <code>position</code>. Optional: <code>location</code>, <code>applyDate</code>, <code>platform</code>, <code>result</code>, <code>minEducation</code>, <code>jobLink</code>. Use <code>yyyy-mm-dd</code> for dates.
+            </p>
+          </div>
+
+          {importLoading && (
+            <p className="text-sm text-muted-foreground">Importing file, please wait…</p>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>

@@ -3,7 +3,7 @@ import { useAuth } from '@/lib/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
-import { Briefcase, LogIn, Mail } from 'lucide-react';
+import { Briefcase, Mail } from 'lucide-react';
 import { Navigate } from 'react-router-dom';
 
 type AuthMode = 'signin' | 'signup' | 'reset';
@@ -59,16 +59,10 @@ export default function Login() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <Button className="w-full h-12 text-lg" onClick={login}>
-            <LogIn className="mr-2 h-5 w-5" />
-            Sign in with Google
-          </Button>
-
-          <div className="border-t border-muted/50 pt-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-              <Mail className="h-4 w-4" />
-              <span>{mode === 'reset' ? 'Reset your password' : mode === 'signup' ? 'Create an account or sign in with email' : 'Sign in with your email'}</span>
-            </div>
+          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
+            <Mail className="h-4 w-4" />
+            <span>{mode === 'reset' ? 'Reset your password' : mode === 'signup' ? 'Create an account or sign in with email' : 'Sign in with your email'}</span>
+          </div>
 
             <form className="space-y-3" onSubmit={handleEmailSubmit}>
               <div className="space-y-2">

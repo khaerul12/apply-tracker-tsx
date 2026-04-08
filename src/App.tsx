@@ -7,9 +7,9 @@ import InputData from './pages/InputData';
 import TableView from './pages/TableView';
 import Admin from './pages/Admin';
 import Login from './pages/Login';
-import { Toaster } from './components/ui/sonner';
+import { Toaster } from '@/components/ui/sonner';
 import { AlertCircle } from 'lucide-react';
-import { Button } from './components/ui/button';
+import { Button } from '@/components/ui/button';
 
 function ProtectedRoute({ children, adminOnly = false }: { children: React.ReactNode, adminOnly?: boolean }) {
   const { user, profile, loading, isTrialValid } = useAuth();
